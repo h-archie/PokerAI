@@ -17,6 +17,16 @@ pip install -e ".[dev]"
 pytest
 ```
 
+## Watch a hand
+
+```bash
+python demo.py                      # 3 players, seed 7
+python demo.py --seed 11 --players 5
+```
+
+Prints every blind, action, street and the showdown. The bots in the demo are
+placeholders (mostly check/call, sometimes bet); real bots come on Day 2.
+
 ## Layout
 
 ```
