@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "holdem"
+version = "0.1.0"
+description = "Simulated No-Limit Texas Hold'em engine and poker bots"
+requires-python = ">=3.11"
+dependencies = ["treys>=0.1.8"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["holdem*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
