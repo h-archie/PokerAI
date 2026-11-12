@@ -97,3 +97,27 @@ def test_smart_beats_baseline_heads_up(opponent):
     agents = make_agents(["smart", opponent], seed=11, evaluator=EVALUATOR)
     report = {r.name: r for r in summarize(run_match(agents, 400, seed=11, evaluator=EVALUATOR))}
     assert report["smart"].low > 0, report["smart"]
+
+
+def test_duplicate_match_deals_each_agent_both_sides():
+    agents = make_agents(["calling", "calling"], seed=0, evaluator=EVALUATOR)
+    result = run_match(agents, 200, seed=0, evaluator=EVALUATOR, duplicate=True)
+    assert result.hands == 200 and result.block == 2
+    # Two identical strategies with swapped cards: every deal nets to exactly zero.
+    for i in range(0, 200, 2):
+        assert result.deltas[0][i] + result.deltas[0][i + 1] == 0
+    report = {r.name: r for r in summarize(result)}
+    assert report["calling"].bb_per_100 == 0 and report["calling"].ci95 == 0
+
+
+def test_duplicate_requires_reset_mode():
+    agents = make_agents(["calling", "calling"], seed=0, evaluator=EVALUATOR)
+    with pytest.raises(ValueError):
+        run_match(agents, 10, duplicate=True, stack_mode="carry")
+
+
+def test_difficulty_ladder_hard_beats_beginner():
+    agents = make_agents(["hard", "beginner"], seed=21, evaluator=EVALUATOR)
+    result = run_match(agents, 300, seed=21, evaluator=EVALUATOR, duplicate=True)
+    report = {r.name: r for r in summarize(result)}
+    assert report["hard"].low > 0, report["hard"]

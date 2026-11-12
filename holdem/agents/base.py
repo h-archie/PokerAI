@@ -7,6 +7,11 @@ from holdem.engine.view import PlayerView
 from holdem.io.events import Event
 
 
+class StopGame(Exception):
+    """Raised by an agent (e.g. a human typing "quit") to end the session.
+    Unlike other agent errors, the table lets it propagate."""
+
+
 class Agent:
     """Base class for players.
 

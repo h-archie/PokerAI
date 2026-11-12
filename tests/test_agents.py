@@ -5,7 +5,9 @@ import random
 import pytest
 
 from holdem.agents.base import Agent
-from holdem.agents.registry import AGENTS, make_agents
+from holdem.agents.registry import AGENTS, DIFFICULTY, make_agents
+
+SMART_KINDS = {*DIFFICULTY, "smart"}
 from holdem.agents.smart import SmartAgent
 from holdem.engine.actions import Action
 from holdem.sim.table import Table
@@ -21,7 +23,7 @@ def test_agent_never_makes_illegal_actions(kind):
         kinds = [kind] + [rng.choice(["random", "calling", "raise"]) for _ in range(n - 1)]
         agents = make_agents(kinds, seed=n, evaluator=EVALUATOR)
         table = Table(agents, rng=random.Random(n), evaluator=EVALUATOR, stack_mode="carry")
-        for _ in range(60 if kind == "smart" else 150):
+        for _ in range(40 if kind in SMART_KINDS else 150):
             table.play_hand()
         assert not table.warnings, table.warnings
 

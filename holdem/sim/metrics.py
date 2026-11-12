@@ -45,16 +45,20 @@ def summarize(result: MatchResult) -> list[AgentReport]:
     bb = result.big_blind
     for name, deltas in zip(result.names, result.deltas):
         n = len(deltas)
+        k = max(1, result.block)
         in_bb = [d / bb for d in deltas]
         mean = statistics.fmean(in_bb) if n else 0.0
-        sd = statistics.stdev(in_bb) if n > 1 else 0.0
+        # Treat each block (e.g. one duplicate deal) as one independent sample.
+        blocks = [sum(in_bb[i : i + k]) / k for i in range(0, n - n % k, k)]
+        nb = len(blocks)
+        sd = statistics.stdev(blocks) if nb > 1 else 0.0
         reports.append(
             AgentReport(
                 name=name,
                 hands=n,
                 net_chips=sum(deltas),
                 bb_per_100=mean * 100,
-                ci95=1.96 * sd / math.sqrt(n) * 100 if n > 1 else math.inf,
+                ci95=1.96 * sd / math.sqrt(nb) * 100 if nb > 1 else math.inf,
                 hands_won=sum(d > 0 for d in deltas) / n if n else 0.0,
             )
         )

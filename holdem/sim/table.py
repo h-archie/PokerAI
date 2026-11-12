@@ -10,7 +10,7 @@ import random
 from collections import Counter
 from typing import Literal, Sequence
 
-from holdem.agents.base import Agent
+from holdem.agents.base import Agent, StopGame
 from holdem.core.evaluator import HandEvaluator, TreysEvaluator
 from holdem.engine.actions import Action
 from holdem.engine.engine import HandEngine, HandResult
@@ -54,7 +54,7 @@ class Table:
         self.stacks = [starting_stack] * len(agents)
         self.rebuys = [0] * len(agents)
         self.button = 0
-        self.hand_id = 0
+        self.hand_id = 1
         self.warnings: Counter[str] = Counter()
         for agent in self.agents:
             self.bus.subscribe(self._safe_handler(agent))
@@ -76,13 +76,17 @@ class Table:
             action = agent.act(view)
             engine.apply(action)
             return
+        except StopGame:
+            raise
         except IllegalAction:
             self.warnings[f"{agent.name}: illegal action"] += 1
         except Exception as exc:  # noqa: BLE001 - isolate agent bugs
             self.warnings[f"{agent.name}: act {type(exc).__name__}"] += 1
         engine.apply(safe_fallback(view.legal))
 
-    def play_hand(self) -> HandResult:
+    def play_hand(self, deck_seed: int | str | None = None) -> HandResult:
+        """Play one hand. ``deck_seed`` fixes the shuffle (used by duplicate
+        matches to deal identical cards at several tables)."""
         if self.stack_mode == "reset":
             self.stacks = [self.starting_stack] * len(self.agents)
         else:
@@ -96,7 +100,7 @@ class Table:
             button=self.button,
             small_blind=self.small_blind,
             big_blind=self.big_blind,
-            rng=self.rng,
+            rng=self.rng if deck_seed is None else random.Random(deck_seed),
             evaluator=self.evaluator,
             bus=self.bus,
             hand_id=self.hand_id,

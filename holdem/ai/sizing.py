@@ -22,17 +22,23 @@ def passive(view: PlayerView) -> Action:
     return Action.check() if view.legal.can_check else Action.call()
 
 
-def bet_amount(intent: Intent, view: PlayerView) -> int:
-    """Street total to raise to: current bet + fraction of the pot after calling."""
+def raise_to_fraction(view: PlayerView, fraction: float, shove_threshold: float | None = None) -> int:
+    """Street total for a raise of ``fraction`` x the pot (after calling),
+    clamped to the legal range."""
     legal = view.legal
     assert legal is not None and legal.min_raise_to is not None and legal.max_raise_to is not None
     current_bet = view.committed_street[view.seat] + legal.call_amount
     pot_after_call = view.pot + legal.call_amount
-    target = current_bet + round(POT_FRACTION[intent] * pot_after_call)
+    target = current_bet + round(fraction * pot_after_call)
     target = max(legal.min_raise_to, min(target, legal.max_raise_to))
-    if target >= SHOVE_THRESHOLD * legal.max_raise_to:
+    if shove_threshold is not None and target >= shove_threshold * legal.max_raise_to:
         target = legal.max_raise_to
     return target
+
+
+def bet_amount(intent: Intent, view: PlayerView) -> int:
+    """Street total to raise to: current bet + fraction of the pot after calling."""
+    return raise_to_fraction(view, POT_FRACTION[intent], SHOVE_THRESHOLD)
 
 
 def to_action(intent: Intent, view: PlayerView) -> Action:

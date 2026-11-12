@@ -9,6 +9,8 @@ Core idea:
   pots automatically.
 - Facing a bet, call only when equity beats the pot odds by a margin.
 - Occasionally bluff when checked to, but only against one or two opponents.
+- With an opponent read (``fold_to_bet``), bluff more against players who
+  fold a lot, never bluff calling stations, and value-bet thinner against them.
 """
 
 from __future__ import annotations
@@ -39,6 +41,10 @@ class PolicyParams:
     call_margin: float = 0.03  # equity must beat pot odds by this much to call
     bluff_freq: float = 0.08  # chance of a small bluff when checked to
     max_raises: int = 3  # after this many raises on a street, stop re-raising
+    thin_value: float = 0.07  # how much lower the value bar goes vs players who never fold
+
+
+FOLD_TO_BET_BASELINE = 0.45  # typical fold-to-bet rate (the opponent model's prior)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,10 +72,19 @@ def decide(
     n_opponents: int,
     params: PolicyParams,
     rng: random.Random,
+    fold_to_bet: float | None = None,
 ) -> Decision:
+    """``fold_to_bet``: how often the opponents in this hand fold to a bet
+    (from the opponent model), or None to play without a read."""
     legal = view.legal
     if legal is None:
         raise ValueError("decide() called when it is not this player's turn")
+
+    bluff_freq, value_edge = params.bluff_freq, params.value_edge
+    if fold_to_bet is not None:
+        ratio = fold_to_bet / FOLD_TO_BET_BASELINE  # 1.0 = an average opponent
+        bluff_freq *= min(max(ratio, 0.0), 2.5) ** 2  # stations ~0, folders up to ~6x
+        value_edge -= params.thin_value * max(0.0, 1.0 - ratio)
 
     fair = 1.0 / (n_opponents + 1)
     edge = equity - fair
@@ -88,7 +103,7 @@ def decide(
         return Decision(Intent.CALL, f"strong but raising capped ({tag}): call")
 
     # 2. Good: bet when checked to, raise a single bet, otherwise just call.
-    if edge >= params.value_edge:
+    if edge >= value_edge:
         if not facing_bet and can_raise:
             return Decision(Intent.BET_MEDIUM, f"value hand ({tag}): bet")
         if facing_bet and raises <= 1 and can_raise:
@@ -104,6 +119,6 @@ def decide(
         return Decision(Intent.FOLD, f"{tag}, pot odds {odds:.0%}: fold")
 
     # 4. Checked to with a weak hand: sometimes bluff small, otherwise check.
-    if can_raise and n_opponents <= 2 and rng.random() < params.bluff_freq:
+    if can_raise and n_opponents <= 2 and rng.random() < bluff_freq:
         return Decision(Intent.BET_SMALL, f"weak hand ({tag}): bluff")
     return Decision(Intent.CHECK, f"weak hand ({tag}): check")
